@@ -1,70 +1,101 @@
-# Network Security Analysis – Week 7
-
-## Question 1: Packet Analysis (Wireshark)
-
-**Flag found:** `SUCTF2023[ai_is_cool]`
-
----
-
-## Question 2: Packet2.pcap Analysis
-
-**Flag found:** `SUCTF2023{EX MACHINA AVA}`
-
-*Method:* FTP data extraction → TCP stream → Tic‑Tac‑Toe cipher.
-
----
-
-## Question 3: Nmap Output Interpretation
-
-### Ports & Attack Vectors
-
-| Port | Service | Version | Attacker Capabilities |
-|------|---------|---------|------------------------|
-| 21/tcp | FTP | vsftpd 2.3.4 | Anonymous login, file upload/download, known backdoor (root shell on port 6200). |
-| 22/tcp | SSH | OpenSSH 5.3p1 | Brute‑force credentials, user enumeration, weak ciphers. |
-| 80/tcp | HTTP | Apache 2.2.8 | Range header DoS, request smuggling, possible RCE if PHP/mod_cgi present. |
-| 139/445/tcp | SMB | Windows 7 SP1 | **EternalBlue (MS17‑010)** – unauthenticated RCE, wormable. |
-
-### Vulnerabilities per Version
-
-- **vsftpd 2.3.4** – Backdoor: username starting with `:)` opens root shell on port 6200.
-- **OpenSSH 5.3p1** – User enumeration, off‑by‑one error.
-- **Apache 2.2.8** – DoS, request smuggling, RCE if CGI enabled.
-- **Windows 7 SP1** – Highly vulnerable to EternalBlue (MS17‑010).
-
-### Highest Risk
-
-**Port 445 (SMB)** – EternalBlue gives unauthenticated remote code execution; no free patches for Windows 7.
-
-### Attack Path
-
-1. Reconnaissance → `nmap --script smb-vuln-ms17-010`
-2. Exploitation → Metasploit `exploit/windows/smb/ms17_010_eternalblue`
-3. Post‑exploitation → Dump hashes, enable RDP, pivot.
-
-### Remediation
-
-- Upgrade vsftpd, OpenSSH, Apache.
-- **Critical:** Patch or replace Windows 7, disable SMBv1.
-
----
-
-## Question 4: OS Fingerprinting (TTL)
-
-| Image | TTL | OS |
-|-------|-----|-----|
-| 1 | 64 | Linux |
-| 2 | (from image) | Cisco Router |
-| 3 | (typical 128) | Windows |
-
----
-
-## Question 5: Nessus Analysis – Ghostcat Vulnerability
-
-| Question | Answer |
-|----------|--------|
-| **1. Affected port** | **8009** (not 9009) |
-| **2. Affected protocol** | AJP (Apache JServ Protocol), version `ajp13` |
-| **3. CVSS Score** | **9.8 (Critical)** |
-| **4. Exploit available?** | Yes – Metasploit module, Exploit‑DB 49039, PoC scripts |
-| **5. CVE ID** | **CVE-2020-1938** |
+SUBJECT
+CODE
+TASK
+VULNERABILITY ANALYSIS
+IKB21004 & IKB21403
+FILE ANALYSIS – SCANNING RESULT
+Question 1: Analyse packet1.pcap and find the flag.
+1. Open the Packet in Wireshark
+2. I’ve found an anomaly as this one is unique compared to the rest
+3. I’ve copy paste this:
+Then put it to base64decode.org:
+4. The flag:
+Question 2: Analyse packet2.pcap and find the flag.
+1. After scrolling through I found this
+Those packets contain words.
+2. I realize those packets are scramble, so I try to combine them using TCP stream:
+What I got is a URL:
+3. I copy paste the URL to my browser:
+It led me to a google doc file and what seem to be a code.
+4. Then I go to https://www.dcode.fr/tic-tac-toe-cipher
+I insert the code from the google doc. Then decode it the result is EX MACHINA AVA
+Flag: SUCTF2023{EX MACHINA AVA}
+Question 3: Interpret an Nmap Output
+PORT STATE SERVICE VERSION
+21/tcp open ftp vs6pd 2.3.4
+22/tcp open ssh OpenSSH 5.3p1
+80/tcp open http Apache 2.2.8
+139/tcp open netbios-ssn
+445/tcp open microso6-ds Windows 7 Professional 7601 Service Pack 1
+Questions:
+1. What can an attacker do with each port?
+21/tcp FTP Anonymous login, upload/download files, or exploit the known backdoor
+to get to root
+22/tcp SSH Brute-force credentials, exploit version-specific vulnerabilities. Example
+user enumeration, denial of service. Or use stolen keys for remote access.
+80/tcp HTTP Web application attacks, or access sensitive files.
+139/tcp NetBios Enumerate shares, users, and workgroups
+445/tcp SMB Access file shares, exploit SMBv1 vulnerabilities, or perform pass-the-hash
+attacks.
+2. What vulnerabilities are likely present based on the version?
+• vsftpd 2.3.4 – Backdoor sending a username triggers a
+backdoor on port 6200, giving a root shell.
+• OpenSSH 5.3p1 – Weak ciphers off-by-one error in sshd,
+user enumeration. No trivial remote RCE,
+butpost-authentication risks.
+• Apache 2.2.8 – Multiple vulnerabilities: Range header DoS,
+HTTP request smuggling, and if PHP/mod_cgi is present, RCE
+is possible.
+• Windows 7 SP1 (SMB) – Highly vulnerable to EternalBlue
+(MS17-010) – unauthenticated remote code execution on
+SMBv1. Also SMBv1 DoS, information disclosure, and
+potential for wormable attacks.
+3. Which one is the highest risk and why?
+• Port 445 (SMB) on Windows 7 SP1: Microsoft no longer
+releases new security patches unless under a paid ESU plan.
+Meaning it extremely exploitable.
+4. What attack path can be built from this?
+• Reconnaissance – Use nmap scripts to confirm EternalBlue
+vulnerability.
+• Initial compromise – Exploit EternalBlue via Metasploit
+• Post-exploitation – Dump hashes, install backdoors, enable
+RDP, or pivot to internal networks.
+5. What should be the remediation?
+• Vsftpd: Upgrade to the latest version.
+• SSH: Update to OpenSSH latest version. Disable weak algorithms, use key-based
+auth.
+• Apache: Update to OpenSSH 8.x (latest). Disable weak algorithms, use key-based
+auth, implement fail2ban.
+• General: Run regular vulnerability scans, enforce least privilege, and maintain a
+patch management policy.
+Question 4: Identify the OS (OS Fingerprinting) - TTL
+Image 1
+Answer: Linux
+Image 2
+Answer: Cisco Router
+Image 3
+Answer: Windows
+Question 5: Analyse the Nessus file
+Upload to your nessus (Network_Scan.nessus) and analyse the files. Focus on critical or high
+findings that was identifies in analysis named “Ghostcat”.
+1. What is the affected Port number
+Answer: Port 9009
+2. What is the Affected protocol
+Answer: The affected protocol is AJP (Apache JServ
+Protocol), specifically version 13 (ajp13). AJP is a binary
+protocol used for communication between Tomcat and web
+servers.
+3. What is the CVSS Score of vulnerability found
+Answer: This score indicates a critical severity level, nearing
+the maximum possible.
+4. Can you find any exploit related to this vulnerability?
+• Answer: AV:N (Attack Vector: Network): This
+vulnerability can be exploited remotely.
+• AC:L (Attack Complexity: Low): The attack
+complexity is low, meaning that the attacker can
+reliably exploit the vulnerability with little to no
+additional information.
+• PR:N (Privileges Required: None): The attacker does
+not require any special privileges to exploit the
+vulnerability.
+5. Find CVE for this vulnerability.
