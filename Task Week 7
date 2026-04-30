@@ -1,0 +1,70 @@
+# Network Security Analysis – Week 7
+
+## Question 1: Packet Analysis (Wireshark)
+
+**Flag found:** `SUCTF2023[ai_is_cool]`
+
+---
+
+## Question 2: Packet2.pcap Analysis
+
+**Flag found:** `SUCTF2023{EX MACHINA AVA}`
+
+*Method:* FTP data extraction → TCP stream → Tic‑Tac‑Toe cipher.
+
+---
+
+## Question 3: Nmap Output Interpretation
+
+### Ports & Attack Vectors
+
+| Port | Service | Version | Attacker Capabilities |
+|------|---------|---------|------------------------|
+| 21/tcp | FTP | vsftpd 2.3.4 | Anonymous login, file upload/download, known backdoor (root shell on port 6200). |
+| 22/tcp | SSH | OpenSSH 5.3p1 | Brute‑force credentials, user enumeration, weak ciphers. |
+| 80/tcp | HTTP | Apache 2.2.8 | Range header DoS, request smuggling, possible RCE if PHP/mod_cgi present. |
+| 139/445/tcp | SMB | Windows 7 SP1 | **EternalBlue (MS17‑010)** – unauthenticated RCE, wormable. |
+
+### Vulnerabilities per Version
+
+- **vsftpd 2.3.4** – Backdoor: username starting with `:)` opens root shell on port 6200.
+- **OpenSSH 5.3p1** – User enumeration, off‑by‑one error.
+- **Apache 2.2.8** – DoS, request smuggling, RCE if CGI enabled.
+- **Windows 7 SP1** – Highly vulnerable to EternalBlue (MS17‑010).
+
+### Highest Risk
+
+**Port 445 (SMB)** – EternalBlue gives unauthenticated remote code execution; no free patches for Windows 7.
+
+### Attack Path
+
+1. Reconnaissance → `nmap --script smb-vuln-ms17-010`
+2. Exploitation → Metasploit `exploit/windows/smb/ms17_010_eternalblue`
+3. Post‑exploitation → Dump hashes, enable RDP, pivot.
+
+### Remediation
+
+- Upgrade vsftpd, OpenSSH, Apache.
+- **Critical:** Patch or replace Windows 7, disable SMBv1.
+
+---
+
+## Question 4: OS Fingerprinting (TTL)
+
+| Image | TTL | OS |
+|-------|-----|-----|
+| 1 | 64 | Linux |
+| 2 | (from image) | Cisco Router |
+| 3 | (typical 128) | Windows |
+
+---
+
+## Question 5: Nessus Analysis – Ghostcat Vulnerability
+
+| Question | Answer |
+|----------|--------|
+| **1. Affected port** | **8009** (not 9009) |
+| **2. Affected protocol** | AJP (Apache JServ Protocol), version `ajp13` |
+| **3. CVSS Score** | **9.8 (Critical)** |
+| **4. Exploit available?** | Yes – Metasploit module, Exploit‑DB 49039, PoC scripts |
+| **5. CVE ID** | **CVE-2020-1938** |
